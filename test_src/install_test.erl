@@ -4,7 +4,7 @@
 %%% 
 %%% Created : 10 dec 2012
 %%% -------------------------------------------------------------------
--module(test).   
+-module(install_test).   
    
 %% --------------------------------------------------------------------
 %% Include files
@@ -13,7 +13,8 @@
 %% --------------------------------------------------------------------
 
 %% External exports
--export([start/0]). 
+-export([start/0,
+	 dbase_infra/0]). 
 
 
 %% ====================================================================
@@ -31,11 +32,21 @@ start()->
     ok=setup(),
     io:format("~p~n",[{"Stop setup",?MODULE,?FUNCTION_NAME,?LINE}]),
 
-    io:format("~p~n",[{"Start pass1()",?MODULE,?FUNCTION_NAME,?LINE}]),
-    ok=pass1(),
-    io:format("~p~n",[{"Stop pass1()",?MODULE,?FUNCTION_NAME,?LINE}]),
+ 
 
- %   io:format("~p~n",[{"Start single()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    io:format("~p~n",[{"Start host()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok=host(),
+    io:format("~p~n",[{"Stop host()",?MODULE,?FUNCTION_NAME,?LINE}]),
+
+%   io:format("~p~n",[{"Start sd_bully()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok=sd_bully(),
+    io:format("~p~n",[{"Stop sd_bully()",?MODULE,?FUNCTION_NAME,?LINE}]),
+
+%   io:format("~p~n",[{"Start dbase_infra()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok=dbase_infra(),
+    io:format("~p~n",[{"Stop dbase_infra()",?MODULE,?FUNCTION_NAME,?LINE}]),
+ 
+%   io:format("~p~n",[{"Start single()",?MODULE,?FUNCTION_NAME,?LINE}]),
  %   ok=single(),
  %   io:format("~p~n",[{"Stop single()",?MODULE,?FUNCTION_NAME,?LINE}]),
 
@@ -43,45 +54,7 @@ start()->
    % ok=cluster(),
    % io:format("~p~n",[{"Stop cluster()",?MODULE,?FUNCTION_NAME,?LINE}]),
 
-
-   % io:format("~p~n",[{"Start pod_spec()",?MODULE,?FUNCTION_NAME,?LINE}]),
-  % ok=pod_spec(),
-  %  io:format("~p~n",[{"Stop pod_spec()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
- %   io:format("~p~n",[{"Start pod()",?MODULE,?FUNCTION_NAME,?LINE}]),
-  %  ok=pod(),
- %   io:format("~p~n",[{"Stop pod()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-  %  io:format("~p~n",[{"Start deployment_spec()",?MODULE,?FUNCTION_NAME,?LINE}]),
-  %  ok=deployment_spec(),
-  %  io:format("~p~n",[{"Stop deployment_spec()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-  %  io:format("~p~n",[{"Start deployment()",?MODULE,?FUNCTION_NAME,?LINE}]),
-   % ok=deployment(),
-  %  io:format("~p~n",[{"Stop deployment()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-  %  io:format("~p~n",[{"Start kubelet()",?MODULE,?FUNCTION_NAME,?LINE}]),
-  %  ok=kubelet(),
-  %  io:format("~p~n",[{"Stop kubelet",?MODULE,?FUNCTION_NAME,?LINE}]),
-
- %   io:format("~p~n",[{"Start cluster_info()",?MODULE,?FUNCTION_NAME,?LINE}]),
- %   ok=cluster_info(),
- %   io:format("~p~n",[{"Stop cluster_info",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-%    io:format("~p~n",[{"Start pass_3()",?MODULE,?FUNCTION_NAME,?LINE}]),
-%    ok=pass_3(),
-%    io:format("~p~n",[{"Stop pass_3()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-%    io:format("~p~n",[{"Start pass_4()",?MODULE,?FUNCTION_NAME,?LINE}]),
-%    ok=pass_4(),
-%    io:format("~p~n",[{"Stop pass_4()",?MODULE,?FUNCTION_NAME,?LINE}]),
-
-%    io:format("~p~n",[{"Start pass_5()",?MODULE,?FUNCTION_NAME,?LINE}]),
-%    ok=pass_5(),
-%    io:format("~p~n",[{"Stop pass_5()",?MODULE,?FUNCTION_NAME,?LINE}]),
  
-    
-   
       %% End application tests
     io:format("~p~n",[{"Start cleanup",?MODULE,?FUNCTION_NAME,?LINE}]),
     ok=cleanup(),
@@ -90,70 +63,144 @@ start()->
     io:format("------>"++atom_to_list(?MODULE)++" ENDED SUCCESSFUL ---------"),
     ok.
 
+-define(ServiceCatalog,"service.catalog").
+-define(ApplicationDir,"applications").
 
 %% --------------------------------------------------------------------
 %% Function:start/0 
 %% Description: Initiate the eunit tests, set upp needed processes etc
 %% Returns: non
 %% --------------------------------------------------------------------
-pass1()->
-    Nodes=nodes(),
-    [N1,N2,N3]=Nodes,
-   % io:format("Nodes ~p~n",[Nodes]),
-    [{'a@joq62-X550CA',{error,[mnesia_not_started]}},
-     {'b@joq62-X550CA',{error,[mnesia_not_started]}},
-     {'c@joq62-X550CA',{error,[mnesia_not_started]}}]=[{Node,rpc:call(Node,db_lock,check_init,[],2000)}||Node<-Nodes],
-
-    % Start first node
-    ok=rpc:call(N1,application,start,[dbase_dist],3000),
-    [{'a@joq62-X550CA',ok},
-     {'b@joq62-X550CA',{error,[mnesia_not_started]}},
-     {'c@joq62-X550CA',{error,[mnesia_not_started]}}]=[{Node,rpc:call(Node,db_lock,check_init,[],2000)}||Node<-Nodes],
-   
-    true=rpc:call('a@joq62-X550CA',db_lock,is_leader,[controller_lock,'a@joq62-X550CA'],2000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N1,db_lock,read_all_info,[],5000),
- % Start second node
-    ok=rpc:call(N2,application,start,[dbase_dist],3000),
-    [{'a@joq62-X550CA',ok},
-     {'b@joq62-X550CA',ok},
-     {'c@joq62-X550CA',{error,[mnesia_not_started]}}]=[{Node,rpc:call(Node,db_lock,check_init,[],2000)}||Node<-Nodes],
-   
-    true=rpc:call(N2,db_lock,is_leader,[controller_lock,'a@joq62-X550CA'],2000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N2,db_lock,read_all_info,[],5000),
- % Start third node
-    ok=rpc:call(N3,application,start,[dbase_dist],3000),
-    [{'a@joq62-X550CA',ok},
-     {'b@joq62-X550CA',ok},
-     {'c@joq62-X550CA',ok}]=[{Node,rpc:call(Node,db_lock,check_init,[],2000)}||Node<-Nodes],
-   
-    true=rpc:call(N3,db_lock,is_leader,[controller_lock,'a@joq62-X550CA'],2000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N3,db_lock,read_all_info,[],5000),
-    % kill N1
-
-    slave:stop(N1),
-    timer:sleep(300),
-    [{'b@joq62-X550CA',ok},
-     {'c@joq62-X550CA',ok}]=[{Node,rpc:call(Node,db_lock,check_init,[],2000)}||Node<-nodes()],
- %   timer:sleep(3000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N3,db_lock,read_all_info,[],5000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N2,db_lock,read_all_info,[],5000),
+dbase_infra()->
+    io:format("Start  ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+    {ok,I}=file:consult(?ServiceCatalog),
+    [{_Host,OneNode}|_]=[{Host,host_config:node(Host)}||Host<-lib_status:node_started()],
+    Running=rpc:call(OneNode,application,which_applications,[],1000),
+  %  io:format(" Running ~p~n",[{Running,?MODULE,?FUNCTION_NAME,?LINE}]),
+    case lists:keymember(dbase_infra,1,Running) of
+	false->
+	    io:format(" start dbase_infra  ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+	    ok=start_app(lists:keyfind(dbase_infra,1,I));
+	true->
+%	    io:format("dbase no action ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+	    ok
+    end,
     
-    %start N1 again
-    HostId=net_adm:localhost(),
-    Cookie=atom_to_list(erlang:get_cookie()),
-    Args="-pa ebin -setcookie "++Cookie,
-    {ok,N1}=slave:start(HostId,"a",Args),
-    ok=rpc:call(N1,application,start,[dbase_dist],5000),
+ %   io:format("who_is_leader() ~p~n",[{rpc:call(OneNode,bully,who_is_leader,[],1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+    timer:sleep(20000),
+  %  io:format("  ~p~n",[{rpc:call(OneNode,db_deployment,read_all,[],1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+    io:format("End  ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+    dbase_infra().
+    %ok.
     
-%    timer:sleep(2000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N1,db_lock,read_all_info,[],5000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N2,db_lock,read_all_info,[],5000),
-    [{controller_lock,_,'a@joq62-X550CA'}]=rpc:call(N3,db_lock,read_all_info,[],5000),
+%% --------------------------------------------------------------------
+%% Function:start/0 
+%% Description: Initiate the eunit tests, set upp needed processes etc
+%% Returns: non
+%% --------------------------------------------------------------------
+
+sd_bully()->
+ %   {ok,Bin}=file:read_file(?ServiceCatalog),
+ %   HostNode200=host_config:node("c200"),
+ %   R_delete=rpc:call(HostNode200,file,delete,["service.catalog"],1000),
+ %   io:format("R_delete  ~p~n",[{R_delete,?MODULE,?FUNCTION_NAME,?LINE}]),
+  %  R_delete=rpc:call(HostNode200,file,delete,["service.catalog"],1000),
+    
+    {ok,I}=file:consult(?ServiceCatalog),
+    [{_Host,OneNode}|_]=[{Host,host_config:node(Host)}||Host<-lib_status:node_started()],
+    Running=rpc:call(OneNode,application,which_applications,[],1000),
+ %   io:format(" Running ~p~n",[{Running,?MODULE,?FUNCTION_NAME,?LINE}]),
+    case lists:keymember(sd,1,Running) of
+	false->
+	    io:format(" start sd  ~p~n",[{sd,?MODULE,?FUNCTION_NAME,?LINE}]),
+	    ok=start_app(lists:keyfind(sd,1,I));
+	true->
+	 %   io:format("sd no action ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+	    ok
+    end,
+    case lists:keymember(bully,1,Running) of
+	false->
+	  %  io:format(" start bully  ~p~n",[{bully,?MODULE,?FUNCTION_NAME,?LINE}]),
+	    NodeStarted=[host_config:node(Host)||Host<-lib_status:node_started()],
+	 %   [rpc:call(Node,application,set_env,[[{bully,[{nodes,Nodes}]}]])||Node<-NodeStarted],
+	    ok=start_app(lists:keyfind(bully,1,I));
+	true->
+	  %  io:format("bully no action ~p~n",[{?MODULE,?FUNCTION_NAME,?LINE}]),
+	    ok
+    end,
+ %   io:format("who_is_leader() ~p~n",[{rpc:call(OneNode,bully,who_is_leader,[],1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+    timer:sleep(20000),
+ %   io:format("bully  ~p~n",[{rpc:call(OneNode,application,get_env,[bully,nodes],1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+ %   io:format("dbase_infra  ~p~n",[{rpc:call(OneNode,application,get_env,[dbase_infra,nodes],1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+    
+   % spawn(fun()->sd_bully() end).
+    ok.
+start_app({App,Vsn,GitPath})->
+   
+    NodeStarted=[{Host,host_config:node(Host)}||Host<-lib_status:node_started()],
+
+  %  io:format(" NodeStarted ~p~n",[{NodeStarted,?MODULE,?FUNCTION_NAME,?LINE}]),
+     R_Stop=[{Host,stop_app(Node,App)}||{Host,Node}<-NodeStarted],
+  %  io:format("R_Stop  ~p~n",[{R_Stop,?MODULE,?FUNCTION_NAME,?LINE}]),
+    R_load=[{Host,load_service(Node,?ApplicationDir,{App,Vsn,GitPath})}||{Host,Node}<-NodeStarted],
+  %  io:format("R_load  ~p~n",[{R_load,?MODULE,?FUNCTION_NAME,?LINE}]),
+    R_start=[{Host,rpc:call(Node,application,start,[App],5000)}||{Host,Node}<-NodeStarted],
+  %  io:format("R_start  ~p~n",[{R_start,?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok.
+
+load_service(Node,RootDir,{App,Vsn,GitPath})->
+    AppId=atom_to_list(App),
+    SourceDir=AppId,
+    DestDir=filename:join(RootDir,AppId++"-"++Vsn),
+    rpc:call(Node,os,cmd,["rm -rf "++DestDir],2000),
+    timer:sleep(1000),
+    rpc:call(Node,os,cmd,["git clone "++GitPath],2000),
+    timer:sleep(1000),
+    rpc:call(Node,os,cmd,["mv "++SourceDir++" "++DestDir],2000),
+    timer:sleep(1000),
+    Result=case rpc:call(Node,code,add_patha,[filename:join(DestDir,"ebin")],2000) of
+	       true->
+		   rpc:call(Node,application,load,[App],2000),
+		   {ok,App};
+	       Reason->
+		   {error,[Reason,App,DestDir]}
+	   end,
+    io:format(" ~p~n",[Result]),
+    Result.
+
+stop_app(Node,App)->
+    rpc:call(Node,application,stop,[App],1000),
+    ok.
+
+    
+
+%% --------------------------------------------------------------------
+%% Function:start/0 
+%% Description: Initiate the eunit tests, set upp needed processes etc
+%% Returns: non
+%% --------------------------------------------------------------------
+host()->
+    spawn(fun()->print_status(2*60*1000) end),
+    ok=application:start(sd),
+    ok=application:start(host),
+  %  io:format("sd:all() ~p~n",[{sd:all(),?MODULE,?FUNCTION_NAME,?LINE}]),
+    X=[{Host,lib_os:restart(Host)}||Host<-lib_status:node_started()],
+    io:format("X ~p~n",[{X,?MODULE,?FUNCTION_NAME,?LINE}]),
+    timer:sleep(60*1000),
+    
     
     ok.
 
 
-
+print_status(Sleep)->
+  %  io:format("os_started ~p~n",[{time(),lib_status:os_started()}]),
+  %  io:format("os_stopped ~p~n",[{time(),lib_status:os_stopped()}]),
+  %  io:format("node_started ~p~n",[{time(),lib_status:node_started()}]),
+  %  io:format("node_stopped ~p~n",[{time(),lib_status:node_stopped()}]),
+    NodeStarted=[{Host,host_config:node(Host)}||Host<-lib_status:node_started()],
+    [io:format("~p~n",[{Host,rpc:call(Node,application,which_applications,[],1000)}])||{Host,Node}<-NodeStarted],
+    timer:sleep(Sleep),
+    print_status(Sleep).
 %% --------------------------------------------------------------------
 %% Function:start/0 
 %% Description: Initiate the eunit tests, set upp needed processes etc
@@ -394,21 +441,7 @@ pass_2()->
 %% --------------------------------------------------------------------
 
 setup()->
-    HostId=net_adm:localhost(),
-    A="a@"++HostId,
-    NodeA=list_to_atom(A),
-    B="b@"++HostId,
-    NodeB=list_to_atom(B),
-    C="c@"++HostId,
-    NodeC=list_to_atom(C),    
-    Nodes=[NodeA,NodeB,NodeC],
-    [rpc:call(Node,init,stop,[])||Node<-Nodes],
-    Cookie=atom_to_list(erlang:get_cookie()),
-    Args="-pa ebin -setcookie "++Cookie,
-    [{ok,NodeA},
-     {ok,NodeB},
-     {ok,NodeC}]=[slave:start(HostId,NodeName,Args)||NodeName<-["a","b","c"]],
-    
+   
    ok.
 
 
